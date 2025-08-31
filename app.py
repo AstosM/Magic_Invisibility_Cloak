@@ -60,6 +60,5 @@ while cap.isOpened():
 cap.release()
 out.release()
 cv2.destroyAllWindows()
-# if __name__ == "__main__":
-#     demo.launch()
+
 
