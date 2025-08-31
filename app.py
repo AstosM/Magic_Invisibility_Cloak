@@ -1,112 +1,66 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "f0df83ce",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import cv2\n",
-    "import numpy as np\n",
-    "import time\n",
-    "import gradio as gr\n",
-    "\n",
-    "# Start webcam\n",
-    "cap = cv2.VideoCapture(0)\n",
-    "time.sleep(3)   # let camera warm up\n",
-    "# # Load custom background image\n",
-    "        # background = cv2.imread(\"background.jpg\")\n",
-    "        # background = cv2.resize(background, (640, 480))\n",
-    "# Capture background (first few frames)\n",
-    "for i in range(30):\n",
-    "    ret, background = cap.read()\n",
-    "background = np.flip(background, axis=1)\n",
-    "\n",
-    "# Save output video\n",
-    "fourcc = cv2.VideoWriter_fourcc(*'XVID')\n",
-    "out = cv2.VideoWriter('Invisibility_Magic_cloak.mp4', fourcc, 20.0, (640,480))\n",
-    "\n",
-    "while cap.isOpened():\n",
-    "    ret, frame = cap.read()\n",
-    "    if not ret:\n",
-    "        break\n",
-    "    \n",
-    "    frame = np.flip(frame, axis=1)\n",
-    "    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)\n",
-    "\n",
-    "    # Define red cloak range\n",
-    "    lower_red1 = np.array([0,120,70])\n",
-    "    upper_red1 = np.array([10,255,255])\n",
-    "    lower_red2 = np.array([170,120,70])\n",
-    "    upper_red2 = np.array([180,255,255])\n",
-    "\n",
-    "    # Create mask\n",
-    "    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)\n",
-    "    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)\n",
-    "    cloak_mask = mask1 + mask2\n",
-    "\n",
-    "    # Remove noise\n",
-    "    cloak_mask = cv2.morphologyEx(cloak_mask, cv2.MORPH_OPEN, np.ones((3,3), np.uint8), iterations=2)\n",
-    "    cloak_mask = cv2.dilate(cloak_mask, np.ones((3,3), np.uint8), iterations=1)\n",
-    "\n",
-    "    # Invert mask (everything except cloak)\n",
-    "    inverse_mask = cv2.bitwise_not(cloak_mask)\n",
-    "\n",
-    "    # Extract cloak area from background & non-cloak area from current frame\n",
-    "    cloak_area = cv2.bitwise_and(background, background, mask=cloak_mask)\n",
-    "    non_cloak_area = cv2.bitwise_and(frame, frame, mask=inverse_mask)\n",
-    "\n",
-    "    # Combine both\n",
-    "    final_output = cv2.addWeighted(cloak_area, 1, non_cloak_area, 1, 0)\n",
-    "\n",
-    "    cv2.imshow(\"Invisibility Cloak\", final_output)\n",
-    "    out.write(final_output)\n",
-    "    if cv2.waitKey(1) & 0xFF == ord('q'):\n",
-    "     break\n",
-    "\n",
-    "cap.release()\n",
-    "out.release()\n",
-    "cv2.destroyAllWindows()\n",
-    "# Gradio UI\n",
-    "demo = gr.Interface(\n",
-    "    fn=invisibility,\n",
-    "    inputs=[\n",
-    "        gr.Image(source=\"webcam\", streaming=True),  # Webcam input\n",
-    "        gr.Radio([\"i\", \"c\"], label=\"Mode (i = invisible, c = custom image)\", value=\"i\"),\n",
-    "        gr.Textbox(label=\"Path to custom image (optional)\")\n",
-    "    ],\n",
-    "    outputs=gr.Image(),\n",
-    "    live=True\n",
-    "    title=\"🧙‍♂ Magic Invisibility Cloak\",\n",
-    "    description=\"Harry Potter–style invisibility cloak using Python + OpenCV. Wear a red cloth to vanish!\"\n",
-    ")\n",
-    "\n",
-    "if _name_ == \"_main_\":\n",
-    "    demo.launch()\n",
-    "\n"
-   ]
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "base",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.13.5"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 5
-}
+import cv2
+import numpy as np
+import time
+# import gradio as gr
+
+# -----------------------------
+# Function for Invisibility Cloak
+# -----------------------------
+def invisibility(frame, mode="i", custom_img_path=""):
+    frame = cv2.flip(frame, 1)  # Flip horizontally
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # Define red cloak range in HSV
+    lower_red1 = np.array([0, 120, 70])
+    upper_red1 = np.array([10, 255, 255])
+    lower_red2 = np.array([170, 120, 70])
+    upper_red2 = np.array([180, 255, 255])
+
+    # Create mask
+    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    cloak_mask = mask1 + mask2
+
+    # Remove noise
+    cloak_mask = cv2.morphologyEx(cloak_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8), iterations=2)
+    cloak_mask = cv2.dilate(cloak_mask, np.ones((3, 3), np.uint8), iterations=1)
+
+    # Invert mask
+    inverse_mask = cv2.bitwise_not(cloak_mask)
+
+    # Background selection
+    if mode == "i":  # Invisible mode (use black background)
+        background = np.zeros_like(frame)
+    elif mode == "c" and custom_img_path.strip() != "":
+        background = cv2.imread(custom_img_path)
+        background = cv2.resize(background, (frame.shape[1], frame.shape[0]))
+    else:
+        background = np.zeros_like(frame)
+
+    # Extract cloak area from background & non-cloak area from frame
+    cloak_area = cv2.bitwise_and(background, background, mask=cloak_mask)
+    non_cloak_area = cv2.bitwise_and(frame, frame, mask=inverse_mask)
+
+    # Combine both
+    final_output = cv2.addWeighted(cloak_area, 1, non_cloak_area, 1, 0)
+    return final_output
+
+# -----------------------------
+# Gradio Interface
+# -----------------------------
+# demo = gr.Interface(
+#     fn=invisibility,
+#     inputs=[
+#         gr.Image(source="webcam", streaming=True, label="Webcam"),  # Webcam input
+#         gr.Radio(["i", "c"], label="Mode (i = invisible, c = custom image)", value="i"),
+#         gr.Textbox(label="Path to custom image (optional)")
+#     ],
+#     outputs=gr.Image(),
+#     live=True,
+#     title="🧙‍♂ Magic Invisibility Cloak",
+#     description="Harry Potter–style invisibility cloak using Python + OpenCV. Wear a red cloth to vanish!"
+# )
+
+# if __name__ == "__main__":
+#     demo.launch()
+
